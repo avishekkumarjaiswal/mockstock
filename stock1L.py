@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import random
 import os
-import time
 
 # Set page config as the first Streamlit command
 st.set_page_config(layout="wide")
@@ -28,6 +27,8 @@ if 'prediction' not in st.session_state:
     st.session_state.prediction = None  # Initialize prediction in session state
 if 'players' not in st.session_state:
     st.session_state.players = {}  # Store player names and net worth
+if 'show_success_message' not in st.session_state:
+    st.session_state.show_success_message = False  # Flag to show success message
 
 # Store passwords for each round in a dictionary
 round_passwords = {
@@ -194,22 +195,57 @@ else:
     password = st.sidebar.text_input("Enter Password to Proceed to Next Round", type="password")
     confirmation = st.sidebar.checkbox("I hereby confirm this.")
 
+    # Submit Round button with confirmation check
     if st.sidebar.button("Submit Round"):
         if not confirmation:
             st.sidebar.error("Please confirm by checking the box above.")
-        elif password == round_passwords[st.session_state.round]:
+        elif password == round_passwords[st.session_state.round]:  # Use the password from the dictionary
             if st.session_state.round < 3:
-                st.sidebar.success(f"Round {st.session_state.round} submitted successfully! Now play the next round {st.session_state.round + 1}.")
+                # Update round and reset session state for the next round
                 st.session_state.round += 1
                 st.session_state.round_submitted = False
                 st.session_state.prediction = None  # Clear prediction for the new round
-                save_leaderboard()  # Save leaderboard data to CSV
+                st.session_state.show_success_message = True  # Set flag to show success message
+
+                # Force recalculation of portfolio data
+                current_prices = companies[f"Round {st.session_state.round}"]
+                for company, data in st.session_state.portfolio.items():
+                    if data['shares'] > 0:
+                        data['networth'] = data['shares'] * current_prices.get(company, 0)
+
                 st.rerun()  # Force a rerun to update the UI instantly
             else:
                 st.sidebar.error("All rounds completed!")
-                save_leaderboard()  # Save leaderboard data to CSV
         else:
             st.sidebar.error("Incorrect password!")
+
+    # Display success message after round submission
+    if st.session_state.show_success_message:
+        st.sidebar.success(f"Round {st.session_state.round - 1} submitted successfully! Now play the next round {st.session_state.round}.")
+        st.session_state.show_success_message = False  # Reset the flag after displaying the message
+
+    # Calculator in the sidebar
+    st.sidebar.subheader("Calculator")
+    calc_num1 = st.sidebar.number_input("Enter first number", key="calc_num1")
+    calc_operation = st.sidebar.selectbox("Select operation", ["+", "-", "*", "/"], key="calc_operation")
+    calc_num2 = st.sidebar.number_input("Enter second number", key="calc_num2")
+
+    # Perform calculation
+    if st.sidebar.button("Calculate"):
+        if calc_operation == "+":
+            result = calc_num1 + calc_num2
+        elif calc_operation == "-":
+            result = calc_num1 - calc_num2
+        elif calc_operation == "*":
+            result = calc_num1 * calc_num2
+        elif calc_operation == "/":
+            if calc_num2 != 0:
+                result = calc_num1 / calc_num2
+            else:
+                result = "Error: Division by zero"
+        else:
+            result = "Invalid operation"
+        st.sidebar.write(f"**Result:** {result}")
 
     # Expert Tips section
     st.sidebar.subheader("Get Expert Tips")
