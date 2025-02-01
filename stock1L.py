@@ -32,7 +32,7 @@ if 'show_success_message' not in st.session_state:
 
 # Store passwords for each round in a dictionary
 round_passwords = {
-    1: "password12",  # Password for Round 1
+    1: "",  # Password for Round 1
     2: "password34",  # Password for Round 2
     3: "password56"   # Password for Round 3
 }
