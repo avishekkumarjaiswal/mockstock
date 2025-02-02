@@ -6,17 +6,15 @@ import os
 # Set page config as the first Streamlit command
 st.set_page_config(layout="wide")
 
-# Hide Streamlit footer and GitHub link
-hide_streamlit_style = """
+# Hide Streamlit menu, footer, and prevent code inspection
+st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    .stDeployButton {display: none !important;}  /* Hides GitHub icon */
+    .stDeployButton {display: none !important;}  /* Hide GitHub button */
     </style>
-"""
-st.markdown(
-    """
+
     <script>
     document.addEventListener('contextmenu', event => event.preventDefault());
     document.onkeydown = function(e) {
@@ -28,9 +26,7 @@ st.markdown(
         }
     };
     </script>
-    """,
-    unsafe_allow_html=True
-)
+    """, unsafe_allow_html=True)
 
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
