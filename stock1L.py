@@ -26,9 +26,13 @@ if 'experts' not in st.session_state:
 if 'prediction' not in st.session_state:
     st.session_state.prediction = None  # Initialize prediction in session state
 if 'players' not in st.session_state:
-    st.session_state.players = {}  # Store player names and net worth
+    st.session_state.players = {}  # Store player names, net worth, and round submitted
 if 'show_success_message' not in st.session_state:
     st.session_state.show_success_message = False  # Flag to show success message
+if 'rumors' not in st.session_state:
+    st.session_state.rumors = []  # Store rumors submitted by players
+if 'leaderboard_updated' not in st.session_state:
+    st.session_state.leaderboard_updated = False  # Flag to track leaderboard updates
 
 # Store passwords for each round in a dictionary
 round_passwords = {
@@ -62,6 +66,23 @@ news_data = {
         "Company C is delisted from the stock exchange."
     ]
 }
+
+# Function to load rumors from CSV
+def load_rumors():
+    if os.path.exists("rumors.csv"):
+        try:
+            rumors_df = pd.read_csv("rumors.csv")
+            if not rumors_df.empty:
+                # Return only the last 5 rumors and reverse the order (latest first)
+                return rumors_df.to_dict('records')[-5:][::-1]
+        except pd.errors.EmptyDataError:
+            st.warning("Rumors file is empty.")
+    return []
+
+# Function to save rumors to CSV
+def save_rumors(rumors):
+    rumors_df = pd.DataFrame(rumors)
+    rumors_df.to_csv("rumors.csv", index=False)
 
 # Function to buy shares
 def buy_shares(company, shares, current_price):
@@ -171,6 +192,9 @@ if 'player_name' not in st.session_state:
             st.success(f"Welcome, {player_name}!")
             st.rerun()
 else:
+    # Display the player's name in the sidebar
+    st.sidebar.write(f"Hi, {st.session_state.player_name}!")
+    
     st.sidebar.title("F&IC LUCERIUM 2025")
     st.sidebar.subheader(f"Cash in Hand (₹): {st.session_state.cash}")
 
@@ -206,6 +230,12 @@ else:
                 st.session_state.round_submitted = False
                 st.session_state.prediction = None  # Clear prediction for the new round
                 st.session_state.show_success_message = True  # Set flag to show success message
+                st.session_state.rumors = []  # Clear rumors for the next round
+
+                # Update the leaderboard only at the start of the next round
+                st.session_state.players[st.session_state.player_name] = calculate_net_worth()
+                save_leaderboard()  # Save leaderboard data to CSV
+                st.session_state.leaderboard_updated = True  # Mark leaderboard as updated
 
                 # Force recalculation of portfolio data
                 current_prices = companies[f"Round {st.session_state.round}"]
@@ -267,10 +297,30 @@ else:
     # Main content area
     st.header(f"Round {st.session_state.round}")
 
-    # Display news articles for the current round
-    st.subheader("News for This Round")
+    # Display news articles and rumors for the current round
+    st.subheader("News and Rumors for This Round")
     for news in news_data[f"Round {st.session_state.round}"]:
         st.write(f"- {news}")
+
+    # Load and display rumors from CSV
+    rumors = load_rumors()
+    if rumors:
+        st.write("**Rumors:**")
+        for rumor in rumors:
+            st.write(f"- {rumor['source']}: {rumor['rumor']}")
+
+    # Form to submit a rumor
+    with st.form(key='rumor_form'):
+        rumor_text = st.text_area("Submit a Rumor", placeholder="Enter your rumor here...")
+        rumor_source = st.text_input("Source (Optional, e.g., Anonymous)", placeholder="Anonymous")
+        submit_rumor = st.form_submit_button("Submit Rumor")
+        if submit_rumor and rumor_text:
+            # Add the new rumor to the list and save to CSV
+            new_rumor = {"source": rumor_source if rumor_source else "Anonymous", "rumor": rumor_text}
+            st.session_state.rumors.append(new_rumor)
+            save_rumors(st.session_state.rumors)
+            st.success("Rumor submitted successfully!")
+            st.rerun()
 
     # Create two columns for Current Stock Prices and Transaction Summary
     col1, col2 = st.columns(2)
@@ -327,17 +377,11 @@ else:
     else:
         st.write("No shares owned in the current round.")
 
-    # Update player's net worth in the leaderboard
-    st.session_state.players[st.session_state.player_name] = calculate_net_worth()
-
     # Display leaderboard
     st.subheader("Leaderboard")
     leaderboard_df = pd.DataFrame(list(st.session_state.players.items()), columns=["Player", "Net Worth (₹)"])
     leaderboard_df = leaderboard_df.sort_values(by="Net Worth (₹)", ascending=False)
     st.table(leaderboard_df)
-
-    # Save leaderboard to CSV every second
-    save_leaderboard()
 
     # Final winner announcement
     if st.session_state.round == 3 and password == round_passwords[st.session_state.round]:
