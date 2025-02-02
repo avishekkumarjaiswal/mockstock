@@ -87,9 +87,9 @@ if 'leaderboard_updated' not in st.session_state:
 
 # Store passwords for each round in a dictionary
 round_passwords = {
-    1: "",
-    2: "",
-    3: ""
+    1: "round1pass",
+    2: "round2pass",
+    3: "round3pass"
 }
 
 # Dummy data for companies and their prices for three rounds
