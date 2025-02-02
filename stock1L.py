@@ -6,6 +6,17 @@ import os
 # Set page config as the first Streamlit command
 st.set_page_config(layout="wide")
 
+# Hide Streamlit footer and GitHub link
+hide_streamlit_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stDeployButton {display: none !important;}  /* Hides GitHub icon */
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 # Initialize session state variables
 if 'round' not in st.session_state:
     st.session_state.round = 1
