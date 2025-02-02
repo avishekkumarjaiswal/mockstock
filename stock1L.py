@@ -4,28 +4,57 @@ import random
 import os
 
 # Set page config as the first Streamlit command
-st.set_page_config(layout="wide")
+st.set_page_config(
+    layout="wide",
+    page_title="F&IC LUCERIUM 2025",
+    page_icon="📈"
+)
 
-# Hide Streamlit menu, footer, and prevent code inspection
+# Custom CSS for better design
 st.markdown("""
     <style>
+    /* Hide Streamlit default elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    .stDeployButton {display: none !important;}  /* Hide GitHub button */
-    </style>
+    .stDeployButton {display: none !important;}
 
-    <script>
-    document.addEventListener('contextmenu', event => event.preventDefault());
-    document.onkeydown = function(e) {
-        if (e.ctrlKey && (e.keyCode === 85 || e.keyCode === 83)) {
-            return false;  // Disable "Ctrl + U" (View Source) & "Ctrl + S" (Save As)
-        }
-        if (e.keyCode == 123) {
-            return false;  // Disable "F12" (DevTools)
-        }
-    };
-    </script>
+    /* Custom styles for rumors submission */
+    .rumor-form {
+        background: #f9f9f9;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .rumor-form textarea {
+        width: 100%;
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+    }
+    .rumor-form input {
+        width: 100%;
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+    }
+    .rumor-form button {
+        background: #4CAF50;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    .rumor-form button:hover {
+        background: #45a049;
+    }
+
+    /* Highlight current player in leaderboard */
+    .leaderboard-table tr.highlight {
+        background: #e3f2fd !important;
+    }
+    </style>
     """, unsafe_allow_html=True)
 
 # Initialize session state variables
@@ -46,21 +75,21 @@ if 'experts' not in st.session_state:
         "Expert 3": {"cost": 1000, "accuracy": 0.21}
     }
 if 'prediction' not in st.session_state:
-    st.session_state.prediction = None  # Initialize prediction in session state
+    st.session_state.prediction = None
 if 'players' not in st.session_state:
-    st.session_state.players = {}  # Store player names, net worth, and round submitted
+    st.session_state.players = {}
 if 'show_success_message' not in st.session_state:
-    st.session_state.show_success_message = False  # Flag to show success message
+    st.session_state.show_success_message = False
 if 'rumors' not in st.session_state:
-    st.session_state.rumors = []  # Store rumors submitted by players
+    st.session_state.rumors = []
 if 'leaderboard_updated' not in st.session_state:
-    st.session_state.leaderboard_updated = False  # Flag to track leaderboard updates
+    st.session_state.leaderboard_updated = False
 
 # Store passwords for each round in a dictionary
 round_passwords = {
-    1: "",  # Password for Round 1
-    2: "",  # Password for Round 2
-    3: ""   # Password for Round 3
+    1: "round1pass",
+    2: "round2pass",
+    3: "round3pass"
 }
 
 # Dummy data for companies and their prices for three rounds
@@ -114,7 +143,6 @@ def buy_shares(company, shares, current_price):
     else:
         if company not in st.session_state.portfolio:
             st.session_state.portfolio[company] = {'shares': 0, 'total_spent': 0, 'total_received': 0}
-        
         st.session_state.portfolio[company]['shares'] += shares
         st.session_state.portfolio[company]['total_spent'] += total_cost
         st.session_state.cash -= total_cost
@@ -125,8 +153,8 @@ def buy_shares(company, shares, current_price):
             'shares_sold': 0,
             'price': current_price
         })
-        st.success(f"Successfully bought {shares} shares of {company}!")
-        st.rerun()  # Force refresh to update the UI
+        st.success(f"✅ Successfully bought {shares} shares of {company}!")
+        st.rerun()
 
 # Function to sell shares
 def sell_shares(company, shares, current_price):
@@ -144,30 +172,22 @@ def sell_shares(company, shares, current_price):
             'shares_sold': shares,
             'price': current_price
         })
-        st.success(f"Successfully sold {shares} shares of {company}!")
-        st.rerun()  # Force refresh to update the UI
+        st.success(f"✅ Successfully sold {shares} shares of {company}!")
+        st.rerun()
 
 # Function to get expert prediction
 def get_expert_prediction(expert):
     if expert not in st.session_state.experts:
         return "Invalid expert selected."
-
-    # Deduct the cost from the user's cash
     cost = st.session_state.experts[expert]["cost"]
     if st.session_state.cash < cost:
         return "Not enough cash to pay the expert!"
-
-    st.session_state.cash -= cost  # Deduct the cost immediately
-
-    # Generate a prediction based on the expert's accuracy
+    st.session_state.cash -= cost
     accuracy = st.session_state.experts[expert]["accuracy"]
     if random.random() < accuracy:
-        # Correct prediction
         prediction = f"{expert}'s prediction: The stock prices will rise in the next round!"
     else:
-        # Incorrect prediction
         prediction = f"{expert}'s prediction: The stock prices will fall in the next round."
-
     return prediction
 
 # Function to calculate net worth
@@ -175,13 +195,17 @@ def calculate_net_worth():
     current_prices = companies[f"Round {st.session_state.round}"]
     networth = st.session_state.cash
     for company, data in st.session_state.portfolio.items():
-        current_price = current_prices.get(company, 0)  # Get current price or 0 if delisted
+        current_price = current_prices.get(company, 0)
         networth += data['shares'] * current_price
     return networth
 
-# Function to save leaderboard to CSV
 def save_leaderboard():
-    leaderboard_df = pd.DataFrame(list(st.session_state.players.items()), columns=["Player", "Net Worth (₹)"])
+    # Unpack the dictionary to match the columns
+    leaderboard_data = [
+        [player, data["Net Worth (₹)"], data["Round"]]
+        for player, data in st.session_state.players.items()
+    ]
+    leaderboard_df = pd.DataFrame(leaderboard_data, columns=["Player", "Net Worth (₹)", "Round"])
     leaderboard_df = leaderboard_df.sort_values(by="Net Worth (₹)", ascending=False)
     leaderboard_df.to_csv("leaderboard.csv", index=False)
 
@@ -190,9 +214,12 @@ def load_leaderboard():
     if os.path.exists("leaderboard.csv"):
         try:
             leaderboard_df = pd.read_csv("leaderboard.csv")
-            if not leaderboard_df.empty:  # Check if the file is not empty
+            if not leaderboard_df.empty:
                 for _, row in leaderboard_df.iterrows():
-                    st.session_state.players[row["Player"]] = row["Net Worth (₹)"]
+                    st.session_state.players[row["Player"]] = {
+                        "Net Worth (₹)": row["Net Worth (₹)"],
+                        "Round": row["Round"]
+                    }
         except pd.errors.EmptyDataError:
             st.warning("Leaderboard file is empty. Starting with a fresh leaderboard.")
     else:
@@ -202,7 +229,7 @@ def load_leaderboard():
 load_leaderboard()
 
 # Streamlit app layout
-st.title("F&IC LUCERIUM 2025")
+st.title("📈 F&IC LUCERIUM 2025")
 
 # Player registration
 if 'player_name' not in st.session_state:
@@ -210,18 +237,18 @@ if 'player_name' not in st.session_state:
     if st.button("Register"):
         if player_name:
             st.session_state.player_name = player_name
-            st.session_state.players[player_name] = 0  # Initialize net worth to 0
-            st.success(f"Welcome, {player_name}!")
+            st.session_state.players[player_name] = {"Net Worth (₹)": 0, "Round": 1}
+            st.success(f"🎉 Welcome, {player_name}!")
             st.rerun()
 else:
     # Display the player's name in the sidebar
-    st.sidebar.write(f"Hi, {st.session_state.player_name}!")
+    st.sidebar.write(f"👤 Hi, {st.session_state.player_name}!")
     
-    st.sidebar.title("F&IC LUCERIUM 2025")
-    st.sidebar.subheader(f"Cash in Hand (₹): {st.session_state.cash}")
+    st.sidebar.title("📊 F&IC LUCERIUM 2025")
+    st.sidebar.subheader(f"💰 Cash in Hand (₹): {st.session_state.cash}")
 
     # Trade Shares section
-    st.sidebar.subheader("Trade Shares")
+    st.sidebar.subheader("💼 Trade Shares")
     current_prices = companies[f"Round {st.session_state.round}"]
     company_selected = st.sidebar.selectbox("Select Company", list(current_prices.keys()))
     shares = st.sidebar.number_input(f"Number of shares for {company_selected}", min_value=0, key=f"shares_{company_selected}")
@@ -236,48 +263,41 @@ else:
             sell_shares(company_selected, shares, current_prices[company_selected])
 
     # Proceed to Next Round section
-    st.sidebar.subheader(f"Round {st.session_state.round} Password: `{round_passwords[st.session_state.round]}`")
-    st.sidebar.subheader("Proceed to Next Round")
+    st.sidebar.subheader(f"🔑 Round {st.session_state.round} Password: `{round_passwords[st.session_state.round]}`")
+    st.sidebar.subheader("⏭️ Proceed to Next Round")
     password = st.sidebar.text_input("Enter Password to Proceed to Next Round", type="password")
     confirmation = st.sidebar.checkbox("I hereby confirm this.")
 
     # Submit Round button with confirmation check
     if st.sidebar.button("Submit Round"):
         if not confirmation:
-            st.sidebar.error("Please confirm by checking the box above.")
-        elif password == round_passwords[st.session_state.round]:  # Use the password from the dictionary
+            st.sidebar.error("❌ Please confirm by checking the box above.")
+        elif password == round_passwords[st.session_state.round]:
             if st.session_state.round < 3:
-                # Update round and reset session state for the next round
                 st.session_state.round += 1
                 st.session_state.round_submitted = False
-                st.session_state.prediction = None  # Clear prediction for the new round
-                st.session_state.show_success_message = True  # Set flag to show success message
-                st.session_state.rumors = []  # Clear rumors for the next round
-
-                # Update the leaderboard only at the start of the next round
-                st.session_state.players[st.session_state.player_name] = calculate_net_worth()
-                save_leaderboard()  # Save leaderboard data to CSV
-                st.session_state.leaderboard_updated = True  # Mark leaderboard as updated
-
-                # Force recalculation of portfolio data
-                current_prices = companies[f"Round {st.session_state.round}"]
-                for company, data in st.session_state.portfolio.items():
-                    if data['shares'] > 0:
-                        data['networth'] = data['shares'] * current_prices.get(company, 0)
-
-                st.rerun()  # Force a rerun to update the UI instantly
+                st.session_state.prediction = None
+                st.session_state.show_success_message = True
+                st.session_state.rumors = []
+                st.session_state.players[st.session_state.player_name] = {
+                    "Net Worth (₹)": calculate_net_worth(),
+                    "Round": st.session_state.round
+                }
+                save_leaderboard()
+                st.session_state.leaderboard_updated = True
+                st.rerun()
             else:
-                st.sidebar.error("All rounds completed!")
+                st.sidebar.error("🎉 All rounds completed!")
         else:
-            st.sidebar.error("Incorrect password!")
+            st.sidebar.error("❌ Incorrect password!")
 
     # Display success message after round submission
     if st.session_state.show_success_message:
-        st.sidebar.success(f"Round {st.session_state.round - 1} submitted successfully! Now play the next round {st.session_state.round}.")
-        st.session_state.show_success_message = False  # Reset the flag after displaying the message
+        st.sidebar.success(f"✅ Round {st.session_state.round - 1} submitted successfully! Now play the next round {st.session_state.round}.")
+        st.session_state.show_success_message = False
 
     # Calculator in the sidebar
-    st.sidebar.subheader("Calculator")
+    st.sidebar.subheader("🧮 Calculator")
     calc_num1 = st.sidebar.number_input("Enter first number", key="calc_num1")
     calc_operation = st.sidebar.selectbox("Select operation", ["+", "-", "*", "/"], key="calc_operation")
     calc_num2 = st.sidebar.number_input("Enter second number", key="calc_num2")
@@ -300,48 +320,49 @@ else:
         st.sidebar.write(f"**Result:** {result}")
 
     # Expert Tips section
-    st.sidebar.subheader("Get Expert Tips")
+    st.sidebar.subheader("🔮 Get Expert Tips")
     expert_selected = st.sidebar.selectbox("Select an Expert", list(st.session_state.experts.keys()))
     expert_cost = st.session_state.experts[expert_selected]["cost"]
-    st.sidebar.write(f"Cost: ₹{expert_cost}")
+    st.sidebar.write(f"💸 Cost: ₹{expert_cost}")
 
     # Button to get expert prediction
     if st.sidebar.button("Get Prediction"):
         prediction = get_expert_prediction(expert_selected)
-        st.session_state.prediction = prediction  # Store prediction in session state
-        st.rerun()  # Force a rerun to update the UI instantly
+        st.session_state.prediction = prediction
+        st.rerun()
 
     # Display prediction if it exists
     if 'prediction' in st.session_state and st.session_state.prediction:
-        st.sidebar.success(f"**Prediction:** {st.session_state.prediction}")  # Display prediction prominently
-        st.sidebar.write(f"Remaining Cash: ₹{st.session_state.cash}")
+        st.sidebar.success(f"**🔮 Prediction:** {st.session_state.prediction}")
+        st.sidebar.write(f"💵 Remaining Cash: ₹{st.session_state.cash}")
 
     # Main content area
-    st.header(f"Round {st.session_state.round}")
+    st.header(f"📊 Round {st.session_state.round}")
 
     # Display news articles and rumors for the current round
-    st.subheader("News and Rumors for This Round")
+    st.subheader("📰 News and Rumors for This Round")
     for news in news_data[f"Round {st.session_state.round}"]:
         st.write(f"- {news}")
 
     # Load and display rumors from CSV
     rumors = load_rumors()
     if rumors:
-        st.write("**Rumors:**")
+        st.write("**🗣️ Rumors:**")
         for rumor in rumors:
             st.write(f"- {rumor['source']}: {rumor['rumor']}")
 
     # Form to submit a rumor
     with st.form(key='rumor_form'):
-        rumor_text = st.text_area("Submit a Rumor", placeholder="Enter your rumor here...")
+        st.markdown("<div class='rumor-form'>", unsafe_allow_html=True)
+        rumor_text = st.text_area("Submit a Rumor", placeholder="Enter your rumor here...", max_chars=200)
         rumor_source = st.text_input("Source (Optional, e.g., Anonymous)", placeholder="Anonymous")
         submit_rumor = st.form_submit_button("Submit Rumor")
+        st.markdown("</div>", unsafe_allow_html=True)
         if submit_rumor and rumor_text:
-            # Add the new rumor to the list and save to CSV
             new_rumor = {"source": rumor_source if rumor_source else "Anonymous", "rumor": rumor_text}
             st.session_state.rumors.append(new_rumor)
             save_rumors(st.session_state.rumors)
-            st.success("Rumor submitted successfully!")
+            st.success("✅ Rumor submitted successfully!")
             st.rerun()
 
     # Create two columns for Current Stock Prices and Transaction Summary
@@ -349,25 +370,17 @@ else:
 
     # Display company names and current prices in a table (left column)
     with col1:
-        st.subheader("Current Stock Prices")
+        st.subheader("📈 Current Stock Prices")
         current_prices_df = pd.DataFrame(list(current_prices.items()), columns=["Company", "Current Price (₹)"])
         st.table(current_prices_df)
 
     # Display Transaction Summary in a table (right column)
     with col2:
-        st.subheader("Transaction Summary")
+        st.subheader("📝 Transaction Summary")
         current_round_transactions = [t for t in st.session_state.transactions if t['round'] == st.session_state.round]
-
-        # Calculate total spent (only from buying shares)
         current_round_spent = sum(t['shares_bought'] * t['price'] for t in current_round_transactions)
-
-        # Calculate total received (only from selling shares)
         current_round_received = sum(t['shares_sold'] * t['price'] for t in current_round_transactions)
-
-        # Calculate net cash flow for the round
         net_cash_flow = current_round_received - current_round_spent
-
-        # Create a DataFrame for the Transaction Summary
         transaction_summary_df = pd.DataFrame({
             "Metric": ["Total Amount Spent", "Total Amount Received", "Net Cash Flow"],
             "Amount (₹)": [current_round_spent, current_round_received, net_cash_flow]
@@ -375,7 +388,7 @@ else:
         st.table(transaction_summary_df)
 
     # Table for portfolio data (only display if there are transactions in the current round)
-    st.subheader("Your Portfolio")
+    st.subheader("💼 Your Portfolio")
     table_data = []
     total_spent = 0
     total_received = 0
@@ -395,17 +408,43 @@ else:
     if table_data:
         df = pd.DataFrame(table_data, columns=["Company", "Current Price (₹)", "No. of shares", "Total amount spent", "Total amount received", "Networth"])
         st.table(df)
-        st.write(f"**Total Portfolio Value (Networth): ₹{total_networth}**")
+        st.write(f"**💰 Total Portfolio Value (Networth): ₹{total_networth}**")
     else:
         st.write("No shares owned in the current round.")
 
-    # Display leaderboard
-    st.subheader("Leaderboard")
-    leaderboard_df = pd.DataFrame(list(st.session_state.players.items()), columns=["Player", "Net Worth (₹)"])
+    # Display leaderboard with round progress
+    st.subheader("🏆 Leaderboard")
+    leaderboard_data = []
+    for player, data in st.session_state.players.items():
+        leaderboard_data.append([player, data["Net Worth (₹)"], data["Round"]])
+    leaderboard_df = pd.DataFrame(leaderboard_data, columns=["Player", "Net Worth (₹)", "Round"])
     leaderboard_df = leaderboard_df.sort_values(by="Net Worth (₹)", ascending=False)
-    st.table(leaderboard_df)
+
+    # Highlight the current player's row
+    def highlight_current_player(row):
+        if row["Player"] == st.session_state.player_name:
+            return ['background-color: #e3f2fd'] * len(row)
+        else:
+            return [''] * len(row)
+
+    st.dataframe(leaderboard_df.style.apply(highlight_current_player, axis=1))
 
     # Final winner announcement
     if st.session_state.round == 3 and password == round_passwords[st.session_state.round]:
-        st.success("Competition completed! The winner is the one with the highest net worth.")
+        st.success("🎉 Competition completed! The winner is the one with the highest net worth.")
         save_leaderboard()  # Save leaderboard data to CSV
+
+# Help section in the sidebar
+st.sidebar.subheader("❓ Help")
+st.sidebar.write("""
+- **Buy/Sell Shares**: Select a company and the number of shares to buy or sell.
+- **Expert Tips**: Pay for expert predictions to guide your decisions.
+- **Submit Round**: Enter the password to proceed to the next round.
+- **Rumors**: Submit and view rumors to stay ahead of the competition.
+""")
+
+# Reset Game button (for admins)
+if st.sidebar.button("🔄 Reset Game (Admin Only)"):
+    st.session_state.clear()
+    st.success("Game reset successfully! Refresh the page to start over.")
+    st.rerun()
