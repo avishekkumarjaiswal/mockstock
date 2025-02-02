@@ -26,9 +26,7 @@ st.markdown("""
         }
     };
     </script>
-    """,
-
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 # Initialize session state variables
 if 'round' not in st.session_state:
