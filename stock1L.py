@@ -15,6 +15,23 @@ hide_streamlit_style = """
     .stDeployButton {display: none !important;}  /* Hides GitHub icon */
     </style>
 """
+st.markdown(
+    """
+    <script>
+    document.addEventListener('contextmenu', event => event.preventDefault());
+    document.onkeydown = function(e) {
+        if (e.ctrlKey && (e.keyCode === 85 || e.keyCode === 83)) {
+            return false;  // Disable "Ctrl + U" (View Source) & "Ctrl + S" (Save As)
+        }
+        if (e.keyCode == 123) {
+            return false;  // Disable "F12" (DevTools)
+        }
+    };
+    </script>
+    """,
+    unsafe_allow_html=True
+)
+
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # Initialize session state variables
