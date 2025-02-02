@@ -88,7 +88,7 @@ if 'leaderboard_updated' not in st.session_state:
 # Store passwords for each round in a dictionary
 round_passwords = {
     1: "apple",
-    2: "",
+    2: "tegrat",
     3: ""
 }
 
